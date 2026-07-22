@@ -14,12 +14,17 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             let conn = db::open(&data_dir.join("queue.db"))?;
+            let bindings = hotkeys::load_bindings(&conn);
             app.manage(AppState::new(conn));
             clipboard::spawn_monitor(app.handle().clone());
+            if let Err(e) = hotkeys::apply_bindings(app.handle(), &bindings) {
+                eprintln!("hotkey registration failed: {e}");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -38,6 +43,10 @@ pub fn run() {
             commands::paste_slot,
             commands::get_profiles,
             commands::search_history,
+            commands::set_max_history_items,
+            commands::get_hotkeys,
+            commands::set_hotkey,
+            commands::reset_hotkeys,
         ])
         .run(tauri::generate_context!())
         .expect("error while running queue");

@@ -171,3 +171,56 @@ pub fn get_profiles(state: State<AppState>) -> Vec<Profile> {
 pub fn search_history(_query: String) -> Vec<QueueItem> {
     vec![]
 }
+
+#[tauri::command]
+pub fn set_max_history_items(state: State<AppState>, max_items: u32) {
+    let db = state.db.lock().unwrap();
+    let _ = db::set_setting(&db, "max_history_items", &max_items.to_string());
+    let _ = db::trim_history(&db, max_items);
+}
+
+#[tauri::command]
+pub fn get_hotkeys(state: State<AppState>) -> Vec<crate::hotkeys::HotkeyBinding> {
+    let db = state.db.lock().unwrap();
+    crate::hotkeys::load_bindings(&db)
+}
+
+// Rebinds one action. On registration failure the previous bindings are
+// restored and the error (e.g. an OS-level conflict) is returned to the UI.
+#[tauri::command]
+pub fn set_hotkey(
+    app: AppHandle,
+    state: State<AppState>,
+    action: String,
+    keys: String,
+) -> Result<Vec<crate::hotkeys::HotkeyBinding>, String> {
+    let previous = {
+        let db = state.db.lock().unwrap();
+        crate::hotkeys::load_bindings(&db)
+    };
+    let mut updated = previous.clone();
+    let Some(b) = updated.iter_mut().find(|b| b.action == action) else {
+        return Err(format!("unknown action: {action}"));
+    };
+    b.keys = keys;
+
+    if let Err(e) = crate::hotkeys::apply_bindings(&app, &updated) {
+        let _ = crate::hotkeys::apply_bindings(&app, &previous);
+        return Err(e);
+    }
+    let db = state.db.lock().unwrap();
+    crate::hotkeys::save_bindings(&db, &updated).map_err(|e| e.to_string())?;
+    Ok(updated)
+}
+
+#[tauri::command]
+pub fn reset_hotkeys(
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<Vec<crate::hotkeys::HotkeyBinding>, String> {
+    let defaults = crate::hotkeys::default_bindings();
+    crate::hotkeys::apply_bindings(&app, &defaults)?;
+    let db = state.db.lock().unwrap();
+    crate::hotkeys::save_bindings(&db, &defaults).map_err(|e| e.to_string())?;
+    Ok(defaults)
+}

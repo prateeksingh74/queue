@@ -58,7 +58,7 @@ pub fn spawn_monitor(app: AppHandle) {
     });
 }
 
-fn capture(app: &AppHandle, state: &AppState, text: String) {
+pub fn capture(app: &AppHandle, state: &AppState, text: String) {
     let content_type = intelligence::classify(&text);
     let now = now_ms();
 
