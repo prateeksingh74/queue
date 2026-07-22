@@ -1,0 +1,1 @@
+Be as organized as possible. Always ask questions if you need direction. Always look at the docs folder when in need of a reminder of project's goals and tasks. 
