@@ -20,6 +20,18 @@ export const Commands = {
   captureSlot: (id: string) => invoke<void>("capture_slot", { id }),
   pasteSlot: (id: string) => invoke<void>("paste_slot", { id }),
   getProfiles: () => invoke<Profile[]>("get_profiles"),
+  createProfile: (name: string) => invoke<void>("create_profile", { name }),
+  renameProfile: (id: string, name: string) =>
+    invoke<void>("rename_profile", { id, name }),
+  deleteProfile: (id: string) => invoke<void>("delete_profile", { id }),
+  duplicateProfile: (id: string) => invoke<void>("duplicate_profile", { id }),
+  addProfileItem: (profileId: string, label: string, content: string) =>
+    invoke<void>("add_profile_item", { profileId, label, content }),
+  updateProfileItem: (profileId: string, itemId: string, label: string, content: string) =>
+    invoke<void>("update_profile_item", { profileId, itemId, label, content }),
+  removeProfileItem: (profileId: string, itemId: string) =>
+    invoke<void>("remove_profile_item", { profileId, itemId }),
+  loadProfile: (id: string) => invoke<void>("load_profile", { id }),
   searchHistory: (query: string) => invoke<QueueItem[]>("search_history", { query }),
   getHotkeys: () => invoke<HotkeyBinding[]>("get_hotkeys"),
   setHotkey: (action: string, keys: string) =>

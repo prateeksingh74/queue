@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ContentType } from "./queueStore";
+import { Commands } from "../lib/commands";
 
 export interface ProfileItem {
   id: string;
@@ -13,58 +14,41 @@ export interface Profile {
   name: string;
   items: ProfileItem[];
   createdAt: number;
-  updatedAt: number;
 }
 
+// Backend-owned: mutations invoke commands, store refreshes from
+// "profiles-updated" events (see useProfilesSync).
 interface ProfilesStore {
   profiles: Profile[];
-  createProfile: (name: string) => void;
-  deleteProfile: (id: string) => void;
-  updateProfile: (id: string, updates: Partial<Pick<Profile, "name" | "items">>) => void;
-  addProfileItem: (profileId: string, label: string, content: string, type?: ContentType) => void;
-  removeProfileItem: (profileId: string, itemId: string) => void;
+  applyProfiles: (profiles: Profile[]) => void;
+  createProfile: (name: string) => Promise<void>;
+  renameProfile: (id: string, name: string) => Promise<void>;
+  deleteProfile: (id: string) => Promise<void>;
+  duplicateProfile: (id: string) => Promise<void>;
+  addItem: (profileId: string, label: string, content: string) => Promise<void>;
+  updateItem: (
+    profileId: string,
+    itemId: string,
+    label: string,
+    content: string
+  ) => Promise<void>;
+  removeItem: (profileId: string, itemId: string) => Promise<void>;
+  loadProfile: (id: string) => Promise<void>;
 }
 
 export const useProfilesStore = create<ProfilesStore>((set) => ({
   profiles: [],
 
-  createProfile: (name) =>
-    set((state) => ({
-      profiles: [
-        ...state.profiles,
-        { id: crypto.randomUUID(), name, items: [], createdAt: Date.now(), updatedAt: Date.now() },
-      ],
-    })),
+  applyProfiles: (profiles) => set({ profiles }),
 
-  deleteProfile: (id) =>
-    set((state) => ({ profiles: state.profiles.filter((p) => p.id !== id) })),
-
-  updateProfile: (id, updates) =>
-    set((state) => ({
-      profiles: state.profiles.map((p) =>
-        p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
-      ),
-    })),
-
-  addProfileItem: (profileId, label, content, type = "text") =>
-    set((state) => ({
-      profiles: state.profiles.map((p) =>
-        p.id === profileId
-          ? {
-              ...p,
-              items: [...p.items, { id: crypto.randomUUID(), label, content, type }],
-              updatedAt: Date.now(),
-            }
-          : p
-      ),
-    })),
-
-  removeProfileItem: (profileId, itemId) =>
-    set((state) => ({
-      profiles: state.profiles.map((p) =>
-        p.id === profileId
-          ? { ...p, items: p.items.filter((i) => i.id !== itemId), updatedAt: Date.now() }
-          : p
-      ),
-    })),
+  createProfile: (name) => Commands.createProfile(name),
+  renameProfile: (id, name) => Commands.renameProfile(id, name),
+  deleteProfile: (id) => Commands.deleteProfile(id),
+  duplicateProfile: (id) => Commands.duplicateProfile(id),
+  addItem: (profileId, label, content) =>
+    Commands.addProfileItem(profileId, label, content),
+  updateItem: (profileId, itemId, label, content) =>
+    Commands.updateProfileItem(profileId, itemId, label, content),
+  removeItem: (profileId, itemId) => Commands.removeProfileItem(profileId, itemId),
+  loadProfile: (id) => Commands.loadProfile(id),
 }));

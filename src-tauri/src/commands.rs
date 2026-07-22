@@ -161,9 +161,180 @@ pub fn paste_slot(state: State<AppState>, id: String) -> Result<(), String> {
     paste::paste_text(&state, &content)
 }
 
+fn emit_profiles(app: &AppHandle, state: &AppState) {
+    let _ = app.emit("profiles-updated", state.profiles.lock().unwrap().clone());
+}
+
 #[tauri::command]
 pub fn get_profiles(state: State<AppState>) -> Vec<Profile> {
     state.profiles.lock().unwrap().clone()
+}
+
+#[tauri::command]
+pub fn create_profile(app: AppHandle, state: State<AppState>, name: String) {
+    {
+        let mut profiles = state.profiles.lock().unwrap();
+        let profile = Profile {
+            id: uuid::Uuid::new_v4().to_string(),
+            name,
+            items: Vec::new(),
+            created_at: crate::state::now_ms(),
+        };
+        let db = state.db.lock().unwrap();
+        let _ = db::save_profile(&db, &profile);
+        profiles.push(profile);
+    }
+    emit_profiles(&app, &state);
+}
+
+#[tauri::command]
+pub fn rename_profile(app: AppHandle, state: State<AppState>, id: String, name: String) {
+    {
+        let mut profiles = state.profiles.lock().unwrap();
+        if let Some(profile) = profiles.iter_mut().find(|p| p.id == id) {
+            profile.name = name;
+            let db = state.db.lock().unwrap();
+            let _ = db::save_profile(&db, profile);
+        }
+    }
+    emit_profiles(&app, &state);
+}
+
+#[tauri::command]
+pub fn delete_profile(app: AppHandle, state: State<AppState>, id: String) {
+    {
+        let mut profiles = state.profiles.lock().unwrap();
+        profiles.retain(|p| p.id != id);
+        let db = state.db.lock().unwrap();
+        let _ = db::delete_profile(&db, &id);
+    }
+    emit_profiles(&app, &state);
+}
+
+#[tauri::command]
+pub fn duplicate_profile(app: AppHandle, state: State<AppState>, id: String) {
+    {
+        let mut profiles = state.profiles.lock().unwrap();
+        if let Some(source) = profiles.iter().find(|p| p.id == id).cloned() {
+            let copy = Profile {
+                id: uuid::Uuid::new_v4().to_string(),
+                name: format!("{} Copy", source.name),
+                items: source
+                    .items
+                    .into_iter()
+                    .map(|mut item| {
+                        item.id = uuid::Uuid::new_v4().to_string();
+                        item
+                    })
+                    .collect(),
+                created_at: crate::state::now_ms(),
+            };
+            let db = state.db.lock().unwrap();
+            let _ = db::save_profile(&db, &copy);
+            profiles.push(copy);
+        }
+    }
+    emit_profiles(&app, &state);
+}
+
+#[tauri::command]
+pub fn add_profile_item(
+    app: AppHandle,
+    state: State<AppState>,
+    profile_id: String,
+    label: String,
+    content: String,
+) {
+    {
+        let mut profiles = state.profiles.lock().unwrap();
+        if let Some(profile) = profiles.iter_mut().find(|p| p.id == profile_id) {
+            profile.items.push(crate::state::ProfileItem {
+                id: uuid::Uuid::new_v4().to_string(),
+                label,
+                content_type: crate::intelligence::classify(&content),
+                content,
+            });
+            let db = state.db.lock().unwrap();
+            let _ = db::save_profile(&db, profile);
+        }
+    }
+    emit_profiles(&app, &state);
+}
+
+#[tauri::command]
+pub fn update_profile_item(
+    app: AppHandle,
+    state: State<AppState>,
+    profile_id: String,
+    item_id: String,
+    label: String,
+    content: String,
+) {
+    {
+        let mut profiles = state.profiles.lock().unwrap();
+        if let Some(profile) = profiles.iter_mut().find(|p| p.id == profile_id) {
+            if let Some(item) = profile.items.iter_mut().find(|i| i.id == item_id) {
+                item.label = label;
+                item.content_type = crate::intelligence::classify(&content);
+                item.content = content;
+            }
+            let db = state.db.lock().unwrap();
+            let _ = db::save_profile(&db, profile);
+        }
+    }
+    emit_profiles(&app, &state);
+}
+
+#[tauri::command]
+pub fn remove_profile_item(
+    app: AppHandle,
+    state: State<AppState>,
+    profile_id: String,
+    item_id: String,
+) {
+    {
+        let mut profiles = state.profiles.lock().unwrap();
+        if let Some(profile) = profiles.iter_mut().find(|p| p.id == profile_id) {
+            profile.items.retain(|i| i.id != item_id);
+            let db = state.db.lock().unwrap();
+            let _ = db::save_profile(&db, profile);
+        }
+    }
+    emit_profiles(&app, &state);
+}
+
+// Replaces the queue with the profile's items, in order, and resets the cursor.
+#[tauri::command]
+pub fn load_profile(app: AppHandle, state: State<AppState>, id: String) -> Result<(), String> {
+    {
+        let profiles = state.profiles.lock().unwrap();
+        let profile = profiles
+            .iter()
+            .find(|p| p.id == id)
+            .ok_or_else(|| "profile not found".to_string())?;
+
+        let now = crate::state::now_ms();
+        let items: Vec<QueueItem> = profile
+            .items
+            .iter()
+            .map(|item| QueueItem {
+                id: uuid::Uuid::new_v4().to_string(),
+                content: item.content.clone(),
+                content_type: item.content_type.clone(),
+                added_at: now,
+            })
+            .collect();
+
+        let mut queue = state.queue.lock().unwrap();
+        let mut cursor = state.cursor.lock().unwrap();
+        *queue = items;
+        *cursor = 0;
+        let db = state.db.lock().unwrap();
+        let _ = db::save_queue(&db, &queue);
+        let _ = db::set_setting(&db, "queue_cursor", "0");
+    }
+    emit_queue(&app, &state);
+    Ok(())
 }
 
 // Implemented in Phase 6 — returns empty results for now
