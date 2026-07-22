@@ -68,9 +68,97 @@ pub fn queue_paste(app: AppHandle) -> Result<(), String> {
     paste::paste_next(&app)
 }
 
+fn emit_slots(app: &AppHandle, state: &AppState) {
+    let _ = app.emit("slots-updated", state.slots.lock().unwrap().clone());
+}
+
 #[tauri::command]
 pub fn get_slots(state: State<AppState>) -> Vec<Slot> {
     state.slots.lock().unwrap().clone()
+}
+
+#[tauri::command]
+pub fn create_slot(app: AppHandle, state: State<AppState>, name: String) {
+    {
+        let mut slots = state.slots.lock().unwrap();
+        let slot = Slot {
+            id: uuid::Uuid::new_v4().to_string(),
+            name,
+            content: String::new(),
+            content_type: crate::state::ContentType::Text,
+            updated_at: crate::state::now_ms(),
+        };
+        let db = state.db.lock().unwrap();
+        let _ = db::upsert_slot(&db, &slot);
+        slots.push(slot);
+    }
+    emit_slots(&app, &state);
+}
+
+#[tauri::command]
+pub fn set_slot_content(app: AppHandle, state: State<AppState>, id: String, content: String) {
+    {
+        let mut slots = state.slots.lock().unwrap();
+        if let Some(slot) = slots.iter_mut().find(|s| s.id == id) {
+            slot.content_type = crate::intelligence::classify(&content);
+            slot.content = content;
+            slot.updated_at = crate::state::now_ms();
+            let db = state.db.lock().unwrap();
+            let _ = db::upsert_slot(&db, slot);
+        }
+    }
+    emit_slots(&app, &state);
+}
+
+#[tauri::command]
+pub fn rename_slot(app: AppHandle, state: State<AppState>, id: String, name: String) {
+    {
+        let mut slots = state.slots.lock().unwrap();
+        if let Some(slot) = slots.iter_mut().find(|s| s.id == id) {
+            slot.name = name;
+            let db = state.db.lock().unwrap();
+            let _ = db::upsert_slot(&db, slot);
+        }
+    }
+    emit_slots(&app, &state);
+}
+
+#[tauri::command]
+pub fn delete_slot(app: AppHandle, state: State<AppState>, id: String) {
+    {
+        let mut slots = state.slots.lock().unwrap();
+        slots.retain(|s| s.id != id);
+        let db = state.db.lock().unwrap();
+        let _ = db::delete_slot(&db, &id);
+    }
+    emit_slots(&app, &state);
+}
+
+// Copies the current clipboard text into the slot ("Store to Slot").
+#[tauri::command]
+pub fn capture_slot(app: AppHandle, state: State<AppState>, id: String) -> Result<(), String> {
+    let text = arboard::Clipboard::new()
+        .and_then(|mut c| c.get_text())
+        .map_err(|e| e.to_string())?;
+    set_slot_content(app, state, id, text);
+    Ok(())
+}
+
+// Pastes a slot's content into the frontmost app.
+#[tauri::command]
+pub fn paste_slot(state: State<AppState>, id: String) -> Result<(), String> {
+    let content = {
+        let slots = state.slots.lock().unwrap();
+        slots
+            .iter()
+            .find(|s| s.id == id)
+            .map(|s| s.content.clone())
+            .ok_or_else(|| "slot not found".to_string())?
+    };
+    if content.is_empty() {
+        return Err("slot is empty".to_string());
+    }
+    paste::paste_text(&state, &content)
 }
 
 #[tauri::command]

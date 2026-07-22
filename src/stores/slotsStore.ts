@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ContentType } from "./queueStore";
+import { Commands } from "../lib/commands";
 
 export interface Slot {
   id: string;
@@ -9,37 +10,26 @@ export interface Slot {
   updatedAt: number;
 }
 
+// Backend-owned like the queue: mutations invoke commands, and the store
+// refreshes from "slots-updated" events (see useSlotsSync).
 interface SlotsStore {
   slots: Slot[];
-  createSlot: (name: string) => void;
-  setSlotContent: (id: string, content: string, type?: ContentType) => void;
-  renameSlot: (id: string, name: string) => void;
-  deleteSlot: (id: string) => void;
+  applySlots: (slots: Slot[]) => void;
+  createSlot: (name: string) => Promise<void>;
+  setSlotContent: (id: string, content: string) => Promise<void>;
+  renameSlot: (id: string, name: string) => Promise<void>;
+  deleteSlot: (id: string) => Promise<void>;
+  captureSlot: (id: string) => Promise<void>;
 }
 
 export const useSlotsStore = create<SlotsStore>((set) => ({
   slots: [],
 
-  createSlot: (name) =>
-    set((state) => ({
-      slots: [
-        ...state.slots,
-        { id: crypto.randomUUID(), name, content: "", type: "text", updatedAt: Date.now() },
-      ],
-    })),
+  applySlots: (slots) => set({ slots }),
 
-  setSlotContent: (id, content, type = "text") =>
-    set((state) => ({
-      slots: state.slots.map((s) =>
-        s.id === id ? { ...s, content, type, updatedAt: Date.now() } : s
-      ),
-    })),
-
-  renameSlot: (id, name) =>
-    set((state) => ({
-      slots: state.slots.map((s) => (s.id === id ? { ...s, name } : s)),
-    })),
-
-  deleteSlot: (id) =>
-    set((state) => ({ slots: state.slots.filter((s) => s.id !== id) })),
+  createSlot: (name) => Commands.createSlot(name),
+  setSlotContent: (id, content) => Commands.setSlotContent(id, content),
+  renameSlot: (id, name) => Commands.renameSlot(id, name),
+  deleteSlot: (id) => Commands.deleteSlot(id),
+  captureSlot: (id) => Commands.captureSlot(id),
 }));

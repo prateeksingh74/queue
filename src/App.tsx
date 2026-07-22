@@ -1,6 +1,6 @@
 import { useState } from "react";
 import "./App.css";
-import { useQueueSync } from "./hooks/useClipboard";
+import { useQueueSync, useSlotsSync } from "./hooks/useClipboard";
 import Sidebar from "./components/Layout/Sidebar";
 import QueueView from "./components/Queue";
 import SlotsView from "./components/Slots";
@@ -13,6 +13,7 @@ export type View = "queue" | "slots" | "profiles" | "history" | "settings";
 function App() {
   const [activeView, setActiveView] = useState<View>("queue");
   useQueueSync();
+  useSlotsSync();
 
   const views: Record<View, React.ReactNode> = {
     queue: <QueueView />,

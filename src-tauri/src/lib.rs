@@ -30,6 +30,12 @@ pub fn run() {
             commands::set_monitoring,
             commands::queue_paste,
             commands::get_slots,
+            commands::create_slot,
+            commands::set_slot_content,
+            commands::rename_slot,
+            commands::delete_slot,
+            commands::capture_slot,
+            commands::paste_slot,
             commands::get_profiles,
             commands::search_history,
         ])

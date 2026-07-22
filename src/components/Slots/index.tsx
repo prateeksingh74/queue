@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useSlotsStore } from "../../stores/slotsStore";
+import type { Slot } from "../../stores/slotsStore";
 
 export default function SlotsView() {
   const { slots, createSlot, deleteSlot } = useSlotsStore();
@@ -35,24 +37,87 @@ export default function SlotsView() {
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {slots.map((slot) => (
-            <div key={slot.id} className="group bg-neutral-900 border border-neutral-800 rounded-lg p-3 hover:border-neutral-700 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-neutral-200">{slot.name}</p>
-                <button
-                  onClick={() => deleteSlot(slot.id)}
-                  className="opacity-0 group-hover:opacity-100 text-neutral-600 hover:text-red-400 transition-all cursor-default"
-                >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <p className="text-xs text-neutral-600 truncate">
-                {slot.content || "Empty — hotkey assignment coming in Phase 3"}
-              </p>
-            </div>
+            <SlotCard key={slot.id} slot={slot} onDelete={() => deleteSlot(slot.id)} />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+function SlotCard({ slot, onDelete }: { slot: Slot; onDelete: () => void }) {
+  const { setSlotContent, renameSlot, captureSlot } = useSlotsStore();
+  const [editingName, setEditingName] = useState(false);
+  const [editingContent, setEditingContent] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  return (
+    <div className="group bg-neutral-900 border border-neutral-800 rounded-lg p-3 hover:border-neutral-700 transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        {editingName ? (
+          <input
+            autoFocus
+            defaultValue={slot.name}
+            onBlur={(e) => {
+              if (e.target.value.trim()) renameSlot(slot.id, e.target.value.trim());
+              setEditingName(false);
+            }}
+            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            className="text-sm font-medium bg-neutral-800 border border-neutral-700 rounded px-1.5 py-0.5 text-neutral-200 focus:outline-none w-32"
+          />
+        ) : (
+          <p
+            onDoubleClick={() => setEditingName(true)}
+            className="text-sm font-medium text-neutral-200"
+            title="Double-click to rename"
+          >
+            {slot.name}
+          </p>
+        )}
+        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => captureSlot(slot.id)}
+            title="Store current clipboard here"
+            className="text-neutral-600 hover:text-indigo-400 transition-colors cursor-default"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+          <button
+            onClick={onDelete}
+            className="text-neutral-600 hover:text-red-400 transition-colors cursor-default"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {editingContent ? (
+        <textarea
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            setSlotContent(slot.id, draft);
+            setEditingContent(false);
+          }}
+          rows={2}
+          className="w-full text-xs bg-neutral-800 border border-neutral-700 rounded px-1.5 py-1 text-neutral-300 focus:outline-none resize-none"
+        />
+      ) : (
+        <p
+          onDoubleClick={() => {
+            setDraft(slot.content);
+            setEditingContent(true);
+          }}
+          className="text-xs text-neutral-600 truncate"
+          title="Double-click to edit"
+        >
+          {slot.content || "Empty — double-click to edit, or + to store clipboard"}
+        </p>
       )}
     </div>
   );
