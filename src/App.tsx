@@ -1,6 +1,8 @@
 import { useState } from "react";
 import "./App.css";
 import { useQueueSync, useSlotsSync, useProfilesSync } from "./hooks/useClipboard";
+import Onboarding from "./components/Onboarding";
+import { useSettingsStore } from "./stores/settingsStore";
 import Sidebar from "./components/Layout/Sidebar";
 import QueueView from "./components/Queue";
 import SlotsView from "./components/Slots";
@@ -15,6 +17,11 @@ function App() {
   useQueueSync();
   useSlotsSync();
   useProfilesSync();
+  const onboardingComplete = useSettingsStore((s) => s.onboardingComplete);
+
+  if (!onboardingComplete) {
+    return <Onboarding />;
+  }
 
   const views: Record<View, React.ReactNode> = {
     queue: <QueueView />,
