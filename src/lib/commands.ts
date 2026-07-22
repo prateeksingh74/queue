@@ -1,8 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { QueueItem, QueueSnapshot } from "../stores/queueStore";
+import type { ContentType, QueueSnapshot } from "../stores/queueStore";
 import type { Slot } from "../stores/slotsStore";
 import type { Profile } from "../stores/profilesStore";
 import type { HotkeyBinding } from "../stores/settingsStore";
+
+export interface HistoryItem {
+  id: string;
+  content: string;
+  type: ContentType;
+  copiedAt: number;
+  pinned: boolean;
+}
 
 export const Commands = {
   getQueueState: () => invoke<QueueSnapshot>("get_queue_state"),
@@ -32,7 +40,12 @@ export const Commands = {
   removeProfileItem: (profileId: string, itemId: string) =>
     invoke<void>("remove_profile_item", { profileId, itemId }),
   loadProfile: (id: string) => invoke<void>("load_profile", { id }),
-  searchHistory: (query: string) => invoke<QueueItem[]>("search_history", { query }),
+  searchHistory: (query: string) => invoke<HistoryItem[]>("search_history", { query }),
+  setHistoryPinned: (id: string, pinned: boolean) =>
+    invoke<void>("set_history_pinned", { id, pinned }),
+  deleteHistoryItem: (id: string) => invoke<void>("delete_history_item", { id }),
+  clearHistory: () => invoke<void>("clear_history"),
+  restoreHistoryItem: (id: string) => invoke<void>("restore_history_item", { id }),
   getHotkeys: () => invoke<HotkeyBinding[]>("get_hotkeys"),
   setHotkey: (action: string, keys: string) =>
     invoke<HotkeyBinding[]>("set_hotkey", { action, keys }),

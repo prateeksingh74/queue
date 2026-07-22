@@ -244,6 +244,24 @@ pub fn search_history(conn: &Connection, query: &str) -> rusqlite::Result<Vec<Hi
     rows.collect()
 }
 
+pub fn get_history_item(conn: &Connection, id: &str) -> rusqlite::Result<Option<HistoryItem>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, content, content_type, copied_at, pinned FROM history WHERE id = ?1",
+    )?;
+    let mut rows = stmt.query(params![id])?;
+    rows.next()?
+        .map(|row| {
+            Ok(HistoryItem {
+                id: row.get(0)?,
+                content: row.get(1)?,
+                content_type: str_to_type(&row.get::<_, String>(2)?),
+                copied_at: row.get(3)?,
+                pinned: row.get::<_, i64>(4)? != 0,
+            })
+        })
+        .transpose()
+}
+
 pub fn set_history_pinned(conn: &Connection, id: &str, pinned: bool) -> rusqlite::Result<()> {
     conn.execute(
         "UPDATE history SET pinned = ?2 WHERE id = ?1",

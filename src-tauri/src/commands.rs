@@ -337,10 +337,80 @@ pub fn load_profile(app: AppHandle, state: State<AppState>, id: String) -> Resul
     Ok(())
 }
 
-// Implemented in Phase 6 — returns empty results for now
 #[tauri::command]
-pub fn search_history(_query: String) -> Vec<QueueItem> {
-    vec![]
+pub fn search_history(
+    state: State<AppState>,
+    query: String,
+) -> Result<Vec<crate::state::HistoryItem>, String> {
+    let db = state.db.lock().unwrap();
+    db::search_history(&db, &query).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_history_pinned(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    pinned: bool,
+) -> Result<(), String> {
+    {
+        let db = state.db.lock().unwrap();
+        db::set_history_pinned(&db, &id, pinned).map_err(|e| e.to_string())?;
+    }
+    let _ = app.emit("history-updated", ());
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_history_item(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+) -> Result<(), String> {
+    {
+        let db = state.db.lock().unwrap();
+        db::delete_history_item(&db, &id).map_err(|e| e.to_string())?;
+    }
+    let _ = app.emit("history-updated", ());
+    Ok(())
+}
+
+#[tauri::command]
+pub fn clear_history(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+    {
+        let db = state.db.lock().unwrap();
+        db::clear_history(&db).map_err(|e| e.to_string())?;
+    }
+    let _ = app.emit("history-updated", ());
+    Ok(())
+}
+
+// Re-adds a history item to the end of the queue.
+#[tauri::command]
+pub fn restore_history_item(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+) -> Result<(), String> {
+    let item = {
+        let db = state.db.lock().unwrap();
+        db::get_history_item(&db, &id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "history item not found".to_string())?
+    };
+    {
+        let mut queue = state.queue.lock().unwrap();
+        queue.push(QueueItem {
+            id: uuid::Uuid::new_v4().to_string(),
+            content: item.content,
+            content_type: item.content_type,
+            added_at: crate::state::now_ms(),
+        });
+        let db = state.db.lock().unwrap();
+        let _ = db::save_queue(&db, &queue);
+    }
+    emit_queue(&app, &state);
+    Ok(())
 }
 
 #[tauri::command]
