@@ -1,26 +1,23 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useQueueStore } from "../stores/queueStore";
-import type { ContentType } from "../stores/queueStore";
+import type { QueueSnapshot } from "../stores/queueStore";
+import { Commands } from "../lib/commands";
 
-interface ClipboardChangeEvent {
-  content: string;
-  content_type: ContentType;
-}
-
-// Activated in Phase 2 when the Rust clipboard monitor emits "clipboard-change" events.
-export function useClipboardMonitor(enabled = false) {
-  const addItem = useQueueStore((state) => state.addItem);
+// Keeps the frontend queue store in sync with the Rust backend: hydrates on
+// mount, then applies every "queue-updated" snapshot the backend emits.
+export function useQueueSync() {
+  const applySnapshot = useQueueStore((state) => state.applySnapshot);
 
   useEffect(() => {
-    if (!enabled) return;
+    Commands.getQueueState().then(applySnapshot).catch(console.error);
 
-    const unlisten = listen<ClipboardChangeEvent>("clipboard-change", (event) => {
-      addItem(event.payload.content, event.payload.content_type);
+    const unlisten = listen<QueueSnapshot>("queue-updated", (event) => {
+      applySnapshot(event.payload);
     });
 
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [enabled, addItem]);
+  }, [applySnapshot]);
 }

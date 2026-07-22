@@ -12,7 +12,8 @@ const TYPE_BADGE: Record<ContentType, string> = {
 };
 
 export default function QueueView() {
-  const { items, cursor, clear, removeItem } = useQueueStore();
+  const { items, cursor, monitoring, clear, removeItem, resetCursor, setMonitoring } =
+    useQueueStore();
 
   return (
     <div className="p-6 h-full flex flex-col">
@@ -25,14 +26,34 @@ export default function QueueView() {
               : `${items.length} item${items.length === 1 ? "" : "s"} — next paste at position ${cursor + 1}`}
           </p>
         </div>
-        {items.length > 0 && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={clear}
-            className="text-xs text-neutral-500 hover:text-red-400 transition-colors px-2.5 py-1.5 rounded border border-neutral-800 hover:border-red-400/30 cursor-default"
+            onClick={() => setMonitoring(!monitoring)}
+            className={`text-xs transition-colors px-2.5 py-1.5 rounded border cursor-default ${
+              monitoring
+                ? "text-green-400 border-green-400/30 hover:border-green-400/50"
+                : "text-yellow-400 border-yellow-400/30 hover:border-yellow-400/50"
+            }`}
           >
-            Clear All
+            {monitoring ? "● Recording" : "❚❚ Paused"}
           </button>
-        )}
+          {cursor > 0 && (
+            <button
+              onClick={resetCursor}
+              className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors px-2.5 py-1.5 rounded border border-neutral-800 hover:border-neutral-700 cursor-default"
+            >
+              Restart
+            </button>
+          )}
+          {items.length > 0 && (
+            <button
+              onClick={clear}
+              className="text-xs text-neutral-500 hover:text-red-400 transition-colors px-2.5 py-1.5 rounded border border-neutral-800 hover:border-red-400/30 cursor-default"
+            >
+              Clear All
+            </button>
+          )}
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -44,7 +65,7 @@ export default function QueueView() {
               </svg>
             </div>
             <p className="text-neutral-400 text-sm font-medium">Queue is empty</p>
-            <p className="text-neutral-600 text-xs mt-1">Clipboard monitoring connects in Phase 2</p>
+            <p className="text-neutral-600 text-xs mt-1">Copy anything — it lands here automatically</p>
           </div>
         </div>
       ) : (

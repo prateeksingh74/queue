@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { Commands } from "../lib/commands";
 
 export type ContentType =
   | "text"
@@ -16,40 +17,31 @@ export interface QueueItem {
   addedAt: number;
 }
 
-interface QueueStore {
+export interface QueueSnapshot {
   items: QueueItem[];
   cursor: number;
-  addItem: (content: string, type?: ContentType) => void;
-  removeItem: (id: string) => void;
-  clear: () => void;
-  advanceCursor: () => void;
-  resetCursor: () => void;
+  monitoring: boolean;
+}
+
+// The Rust backend owns queue state; every mutation goes through a command
+// and the store is refreshed from "queue-updated" events (see useQueueSync).
+interface QueueStore extends QueueSnapshot {
+  applySnapshot: (snapshot: QueueSnapshot) => void;
+  removeItem: (id: string) => Promise<void>;
+  clear: () => Promise<void>;
+  resetCursor: () => Promise<void>;
+  setMonitoring: (enabled: boolean) => Promise<void>;
 }
 
 export const useQueueStore = create<QueueStore>((set) => ({
   items: [],
   cursor: 0,
+  monitoring: true,
 
-  addItem: (content, type = "text") =>
-    set((state) => ({
-      items: [
-        ...state.items,
-        { id: crypto.randomUUID(), content, type, addedAt: Date.now() },
-      ],
-    })),
+  applySnapshot: (snapshot) => set(snapshot),
 
-  removeItem: (id) =>
-    set((state) => {
-      const items = state.items.filter((item) => item.id !== id);
-      return { items, cursor: Math.min(state.cursor, Math.max(0, items.length - 1)) };
-    }),
-
-  clear: () => set({ items: [], cursor: 0 }),
-
-  advanceCursor: () =>
-    set((state) => ({
-      cursor: state.cursor < state.items.length - 1 ? state.cursor + 1 : state.cursor,
-    })),
-
-  resetCursor: () => set({ cursor: 0 }),
+  removeItem: (id) => Commands.removeQueueItem(id),
+  clear: () => Commands.clearQueue(),
+  resetCursor: () => Commands.resetCursor(),
+  setMonitoring: (enabled) => Commands.setMonitoring(enabled),
 }));
