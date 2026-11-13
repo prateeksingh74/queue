@@ -25,6 +25,7 @@ pub fn remove_queue_item(app: AppHandle, state: State<AppState>, id: String) {
                 *cursor -= 1;
             }
         }
+        *cursor = (*cursor).min(queue.len().saturating_sub(1));
         let db = state.db.lock().unwrap();
         let _ = db::save_queue(&db, &queue);
         let _ = db::set_setting(&db, "queue_cursor", &cursor.to_string());
@@ -55,6 +56,30 @@ pub fn reset_cursor(app: AppHandle, state: State<AppState>) {
         let _ = db::set_setting(&db, "queue_cursor", "0");
     }
     emit_queue(&app, &state);
+}
+
+pub fn select_position(app: &AppHandle, state: &AppState, position: usize) {
+    {
+        let queue = state.queue.lock().unwrap();
+        let mut cursor = state.cursor.lock().unwrap();
+        *cursor = position.min(queue.len().saturating_sub(1));
+        let db = state.db.lock().unwrap();
+        let _ = db::set_setting(&db, "queue_cursor", &cursor.to_string());
+    }
+    emit_queue(app, state);
+}
+
+#[tauri::command]
+pub fn select_queue_item(app: AppHandle, state: State<AppState>, position: usize) {
+    select_position(&app, &state, position);
+}
+
+pub fn move_selection(app: &AppHandle, state: &AppState, forward: bool) {
+    let position = {
+        let cursor = state.cursor.lock().unwrap();
+        if forward { cursor.saturating_add(1) } else { cursor.saturating_sub(1) }
+    };
+    select_position(app, state, position);
 }
 
 #[tauri::command]

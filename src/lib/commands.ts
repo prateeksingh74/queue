@@ -16,6 +16,7 @@ export const Commands = {
   getQueueState: () => invoke<QueueSnapshot>("get_queue_state"),
   removeQueueItem: (id: string) => invoke<void>("remove_queue_item", { id }),
   clearQueue: () => invoke<void>("clear_queue"),
+  selectQueueItem: (position: number) => invoke<void>("select_queue_item", { position }),
   resetCursor: () => invoke<void>("reset_cursor"),
   setMonitoring: (enabled: boolean) => invoke<void>("set_monitoring", { enabled }),
   queuePaste: () => invoke<void>("queue_paste"),

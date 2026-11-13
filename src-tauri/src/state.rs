@@ -86,6 +86,7 @@ pub struct AppState {
     // Content we wrote to the clipboard ourselves (during paste); the monitor
     // must skip it so pasting never re-enqueues the pasted item.
     pub suppress: Mutex<Option<String>>,
+    pub paste_lock: Mutex<()>,
 }
 
 impl AppState {
@@ -93,11 +94,12 @@ impl AppState {
         let queue = crate::db::load_queue(&conn).unwrap_or_default();
         let slots = crate::db::load_slots(&conn).unwrap_or_default();
         let profiles = crate::db::load_profiles(&conn).unwrap_or_default();
-        let cursor = crate::db::get_setting(&conn, "queue_cursor")
+        let cursor: usize = crate::db::get_setting(&conn, "queue_cursor")
             .ok()
             .flatten()
             .and_then(|v| v.parse().ok())
             .unwrap_or(0);
+        let cursor = cursor.min(queue.len().saturating_sub(1));
         Self {
             db: Mutex::new(conn),
             queue: Mutex::new(queue),
@@ -106,6 +108,7 @@ impl AppState {
             profiles: Mutex::new(profiles),
             monitoring: AtomicBool::new(true),
             suppress: Mutex::new(None),
+            paste_lock: Mutex::new(()),
         }
     }
 
@@ -123,4 +126,23 @@ pub fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restores_legacy_exhausted_cursor_to_last_saved_item() {
+        let conn = crate::db::open(std::path::Path::new(":memory:")).unwrap();
+        let items = vec![QueueItem {
+            id: "saved".into(), content: "reuse me".into(),
+            content_type: ContentType::Text, added_at: 0,
+        }];
+        crate::db::save_queue(&conn, &items).unwrap();
+        crate::db::set_setting(&conn, "queue_cursor", "1").unwrap();
+        let state = AppState::new(conn);
+        assert_eq!(state.snapshot().cursor, 0);
+        assert_eq!(state.snapshot().items[0].content, "reuse me");
+    }
 }

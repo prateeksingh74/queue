@@ -30,6 +30,7 @@ interface QueueStore extends QueueSnapshot {
   removeItem: (id: string) => Promise<void>;
   clear: () => Promise<void>;
   resetCursor: () => Promise<void>;
+  selectItem: (position: number) => Promise<void>;
   setMonitoring: (enabled: boolean) => Promise<void>;
 }
 
@@ -43,5 +44,6 @@ export const useQueueStore = create<QueueStore>((set) => ({
   removeItem: (id) => Commands.removeQueueItem(id),
   clear: () => Commands.clearQueue(),
   resetCursor: () => Commands.resetCursor(),
+  selectItem: (position) => Commands.selectQueueItem(position),
   setMonitoring: (enabled) => Commands.setMonitoring(enabled),
 }));

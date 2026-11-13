@@ -32,6 +32,7 @@ pub fn run() {
             commands::remove_queue_item,
             commands::clear_queue,
             commands::reset_cursor,
+            commands::select_queue_item,
             commands::set_monitoring,
             commands::queue_paste,
             commands::get_slots,

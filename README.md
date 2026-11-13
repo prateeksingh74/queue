@@ -2,7 +2,7 @@
 
 *The programmable clipboard for modern workflows.*
 
-Queue transforms the single-value system clipboard into a persistent, ordered workspace. Copy multiple items and paste them back sequentially, keep frequently used values in permanent slots, and fill entire forms from reusable profiles — all driven by global hotkeys that work in any app.
+Queue transforms the single-value system clipboard into a persistent, ordered workspace. Copy multiple items, browse your saved queue, and paste the selected item repeatedly, keep frequently used values in permanent slots, and fill entire forms from reusable profiles — all driven by global hotkeys that work in any app.
 
 Built with **Tauri 2** (Rust backend) + **React 19** + **TypeScript** + **Tailwind CSS 4** + **Zustand**, with **SQLite** persistence. Currently macOS-only.
 
@@ -67,14 +67,15 @@ Open Notes (or any app) and copy three different lines of text.
 - Item 1 has an indigo highlight — that's the paste cursor.
 - Clicking **● Recording** pauses capture (copies are ignored until resumed).
 
-### 3. Sequential paste
+### 3. Browse and paste
 
-Click into any text field, then press **⌘⇧V** repeatedly.
+Click into any text field. Use **⌘⇧↑ / ⌘⇧↓** to select the previous / next queue item, then **⌘⇧V** to paste it. Shortcuts are customizable in Settings.
 
 **Expected:**
-- Each press pastes the next queue item in order; the highlight in Queue advances.
+- Each paste uses the selected item and keeps it selected, allowing repeated pastes.
+- Navigation stops at the first and last item. You can also click any item in Queue to select it.
 - Pasted items do **not** re-enter the queue (self-capture suppression).
-- After the last item, further presses do nothing.
+- A paste failure opens Queue and shows an error, including missing Accessibility permission.
 - The **Restart** button resets the cursor to item 1.
 
 ### 4. Persistence
@@ -98,7 +99,7 @@ Create a profile, expand it with the chevron, and add items in order:
 `Name / John Smith`, `Email / john@email.com`, `Phone / 555-1234`. Then press **Load**.
 
 **Expected:** the queue is replaced with those items in order. Click into a form and
-press ⌘⇧V three times — name, email, phone are pasted sequentially. This is the
+press ⌘⇧V three times and move to the next item with ⌘⇧↓ between pastes — name, email, phone are pasted in order. This is the
 job-application workflow. **Duplicate** (copy icon) deep-copies a profile.
 
 ### 7. History
@@ -116,13 +117,15 @@ Click any shortcut chip.
 
 **Expected:** it pulses ("Press keys…"). Press a new combo (must include a modifier)
 — it takes effect globally, immediately. Esc cancels; Backspace clears the binding;
-**Reset to defaults** restores all four. Custom bindings survive restart.
+**Reset to defaults** restores all defaults. Custom bindings survive restart.
 
 ### Default hotkeys
 
 | Action | Shortcut |
 |--------|----------|
-| Queue Paste (paste next item) | ⌘⇧V |
+| Paste selected item (repeatable) | ⌘⇧V |
+| Previous item | ⌘⇧↑ |
+| Next item | ⌘⇧↓ |
 | Add Clipboard to Queue | ⌘⇧C |
 | Open Queue window | ⌘⇧Q |
 | Clear Queue | unbound |

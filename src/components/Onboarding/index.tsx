@@ -70,8 +70,7 @@ export default function Onboarding() {
                 ))}
             </div>
             <p className="text-xs text-yellow-500/80 mt-4 text-center">
-              macOS will ask for Accessibility permission the first time Queue pastes —
-              that's required to simulate ⌘V.
+              Enable Queue (or your development terminal) in System Settings → Privacy &amp; Security → Accessibility to allow pasting.
             </p>
           </div>
         )}
@@ -106,7 +105,7 @@ export default function Onboarding() {
             <p className="text-sm text-neutral-400">
               Copy a few things and watch your queue fill up. Then press{" "}
               <span className="font-mono text-neutral-300">⌘⇧V</span> anywhere to paste
-              them back in order.
+              the selected item. Use ⌘⇧↑ / ⌘⇧↓ to browse, and paste the same item as often as you need.
             </p>
           </div>
         )}

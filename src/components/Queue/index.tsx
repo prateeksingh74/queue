@@ -12,7 +12,7 @@ const TYPE_BADGE: Record<ContentType, string> = {
 };
 
 export default function QueueView() {
-  const { items, cursor, monitoring, clear, removeItem, resetCursor, setMonitoring } =
+  const { items, cursor, monitoring, clear, removeItem, resetCursor, selectItem, setMonitoring } =
     useQueueStore();
 
   return (
@@ -23,7 +23,7 @@ export default function QueueView() {
           <p className="text-xs text-neutral-500 mt-0.5">
             {items.length === 0
               ? "Copy items to build your queue"
-              : `${items.length} item${items.length === 1 ? "" : "s"} — next paste at position ${cursor + 1}`}
+              : `${items.length} item${items.length === 1 ? "" : "s"} — selected item ${cursor + 1}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -56,6 +56,19 @@ export default function QueueView() {
         </div>
       </div>
 
+      {items.length > 0 && (
+        <div className="mb-4 space-y-3">
+          <p className="text-xs text-neutral-400">Use Previous / Next or your shortcuts in Settings to browse. Paste keeps the selection for reuse.</p>
+          <div className="flex gap-2">
+            <button disabled={cursor === 0} onClick={() => selectItem(cursor - 1)} className="text-xs px-3 py-2 rounded border border-neutral-700 disabled:opacity-30">↑ Previous</button>
+            <button disabled={cursor >= items.length - 1} onClick={() => selectItem(cursor + 1)} className="text-xs px-3 py-2 rounded border border-neutral-700 disabled:opacity-30">↓ Next</button>
+          </div>
+          <div className="p-3 rounded border border-indigo-500/25 bg-indigo-500/10">
+            <p className="text-xs text-indigo-300 mb-1">Selected item · paste as many times as you need</p>
+            <p className="text-sm whitespace-pre-wrap break-words max-h-40 overflow-auto">{items[cursor]?.content}</p>
+          </div>
+        </div>
+      )}
       {items.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -82,7 +95,12 @@ export default function QueueView() {
               <span className="text-xs text-neutral-700 font-mono w-4 text-right flex-shrink-0">
                 {index + 1}
               </span>
-              <p className="flex-1 text-sm text-neutral-200 truncate min-w-0">{item.content}</p>
+              <button
+                onClick={() => selectItem(index)}
+                aria-pressed={index === cursor}
+                aria-label={`Select item ${index + 1}: ${item.content}`}
+                className="flex-1 text-left text-sm text-neutral-200 truncate min-w-0"
+              >{item.content}</button>
               <span className={`text-xs px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${TYPE_BADGE[item.type]}`}>
                 {item.type}
               </span>
